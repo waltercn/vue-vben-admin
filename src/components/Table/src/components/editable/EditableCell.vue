@@ -44,6 +44,7 @@
   import { propTypes } from '/@/utils/propTypes';
   import { isString, isBoolean, isFunction, isNumber, isArray } from '/@/utils/is';
   import { createPlaceholderMessage } from './helper';
+  import { set } from 'lodash-es';
 
   export default defineComponent({
     name: 'EditableCell',
@@ -227,14 +228,16 @@
           if (!isPass) return false;
         }
 
-        const { column, index } = props;
+        const { column, index, record } = props;
+        if (!record) return false;
         const { key, dataIndex } = column;
         const value = unref(currentValueRef);
         if (!key || !dataIndex) return;
 
         const dataKey = (dataIndex || key) as string;
 
-        const record = await table.updateTableData(index, dataKey, value);
+        set(record, dataKey, value);
+        //const record = await table.updateTableData(index, dataKey, value);
         needEmit && table.emit?.('edit-end', { record, index, key, value });
         isEdit.value = false;
       }
@@ -249,7 +252,14 @@
       function handleCancel() {
         isEdit.value = false;
         currentValueRef.value = defaultValueRef.value;
-        table.emit?.('edit-cancel', unref(currentValueRef));
+        const { column, index, record } = props;
+        const { key, dataIndex } = column;
+        table.emit?.('edit-cancel', {
+          record,
+          index,
+          key: dataIndex || key,
+          value: unref(currentValueRef),
+        });
       }
 
       function onClickOutside() {
@@ -282,6 +292,10 @@
         initCbs('validCbs', handleSubmiRule);
         initCbs('cancelCbs', handleCancel);
 
+        if (props.column.dataIndex) {
+          if (!props.record.editValueRefs) props.record.editValueRefs = {};
+          props.record.editValueRefs[props.column.dataIndex] = currentValueRef;
+        }
         /* eslint-disable  */
         props.record.onCancelEdit = () => {
           isArray(props.record?.cancelCbs) && props.record?.cancelCbs.forEach((fn) => fn());

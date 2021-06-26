@@ -1,5 +1,5 @@
 <template>
-  <div :class="[prefixCls, getAlign]">
+  <div :class="[prefixCls, getAlign]" @click="onCellClick">
     <template v-for="(action, index) in getActions" :key="`${index}-${action.label}`">
       <PopConfirmButton v-bind="action">
         <Icon :icon="action.icon" class="mr-1" v-if="action.icon" />
@@ -8,14 +8,18 @@
       <Divider
         type="vertical"
         class="action-divider"
-        v-if="divider && index < getActions.length - (dropDownActions ? 0 : 1)"
+        v-if="
+          divider &&
+          index < getActions.length - (dropDownActions ? 0 : 1) &&
+          getDropdownList.length > 0
+        "
       />
     </template>
     <Dropdown
       :trigger="['hover']"
       :dropMenuList="getDropdownList"
       popconfirm
-      v-if="dropDownActions"
+      v-if="dropDownActions && getDropdownList.length > 0"
     >
       <slot name="more"></slot>
       <a-button type="link" size="small" v-if="!$slots.more">
@@ -28,16 +32,13 @@
   import { defineComponent, PropType, computed, toRaw } from 'vue';
   import { MoreOutlined } from '@ant-design/icons-vue';
   import { Divider } from 'ant-design-vue';
-
   import Icon from '/@/components/Icon/index';
   import { ActionItem, TableActionType } from '/@/components/Table';
   import { PopConfirmButton } from '/@/components/Button';
   import { Dropdown } from '/@/components/Dropdown';
-
   import { useDesign } from '/@/hooks/web/useDesign';
   import { useTableContext } from '../hooks/useTableContext';
   import { usePermission } from '/@/hooks/web/usePermission';
-
   import { isBoolean, isFunction } from '/@/utils/is';
   import { propTypes } from '/@/utils/propTypes';
   import { ACTION_COLUMN_FLAG } from '../const';
@@ -56,6 +57,7 @@
       },
       divider: propTypes.bool.def(true),
       outside: propTypes.bool,
+      stopButtonPropagation: propTypes.bool.def(false),
     },
     setup(props) {
       const { prefixCls } = useDesign('basic-table-action');
@@ -122,7 +124,15 @@
         return actionColumn?.align ?? 'left';
       });
 
-      return { prefixCls, getActions, getDropdownList, getAlign };
+      function onCellClick(e: MouseEvent) {
+        if (!props.stopButtonPropagation) return;
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'BUTTON') {
+          e.stopPropagation();
+        }
+      }
+
+      return { prefixCls, getActions, getDropdownList, getAlign, onCellClick };
     },
   });
 </script>
